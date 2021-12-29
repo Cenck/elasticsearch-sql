@@ -21,6 +21,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * @author iamazy
@@ -31,7 +32,7 @@ public class ElasticStatement extends AbstractStatement {
     protected ElasticConnection connection;
     private ResultSet resultSet;
     private ElasticSql2DslParser elasticSql2DslParser;
-    private Map<String,String> aliasMap;
+    private Map<String, String> aliasMap;
 
     public ElasticStatement(ElasticConnection connection) {
         this.connection = connection;
@@ -41,13 +42,13 @@ public class ElasticStatement extends AbstractStatement {
     @Override
     public ResultSet executeQuery(String sql) throws SQLException {
         ElasticSqlParseResult parseResult = elasticSql2DslParser.parse(sql);
-        checkDatabase(parseResult.getIndices());
+        connection.checkDatabase(parseResult.getIndices());
         assert parseResult.getSqlOperation() == SqlOperation.SELECT;
         try {
             SearchResponse searchResponse = connection.getRestClient().search(parseResult.getSearchRequest(), RequestOptions.DEFAULT);
             JdbcResponseExtractor jdbcResponseExtractor = new JdbcResponseExtractor();
-            this.aliasMap=parseResult.getAliasMap();
-            this.resultSet = new ElasticResultSet(this, jdbcResponseExtractor.parseSearchResponse(searchResponse,parseResult.getAliasMap()));
+            this.aliasMap = parseResult.getAliasMap();
+            this.resultSet = new ElasticResultSet(this, jdbcResponseExtractor.parseSearchResponse(searchResponse, parseResult.getAliasMap()));
             return resultSet;
         } catch (IOException e) {
             throw new SQLException(e.getMessage());
@@ -59,20 +60,20 @@ public class ElasticStatement extends AbstractStatement {
         SearchResponse searchResponse;
         if (StringUtils.isBlank(scrollId)) {
             ElasticSqlParseResult parseResult = elasticSql2DslParser.parse(sql);
-            checkDatabase(parseResult.getIndices());
+            connection.checkDatabase(parseResult.getIndices());
             assert parseResult.getSqlOperation() == SqlOperation.SELECT;
             parseResult.getSearchRequest().scroll(JdbcConstants.SCROLL);
             parseResult.getSearchRequest().source().size(JdbcConstants.DEFAULT_SCROLL_SIZE);
             parseResult.getSearchRequest().source().trackTotalHits(true);
-            this.aliasMap=parseResult.getAliasMap();
+            this.aliasMap = parseResult.getAliasMap();
             searchResponse = connection.getRestClient().search(parseResult.getSearchRequest(), RequestOptions.DEFAULT);
         } else {
             SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
             scrollRequest.scroll(JdbcConstants.SCROLL);
             searchResponse = connection.getRestClient().scroll(scrollRequest, RequestOptions.DEFAULT);
         }
-        JdbcSearchResponse jdbcSearchResponse = jdbcResponseExtractor.parseScrollSearchResponse(searchResponse,this.aliasMap);
-        if(StringUtils.isBlank(jdbcSearchResponse.getSql())){
+        JdbcSearchResponse jdbcSearchResponse = jdbcResponseExtractor.parseScrollSearchResponse(searchResponse, this.aliasMap);
+        if (StringUtils.isBlank(jdbcSearchResponse.getSql())) {
             jdbcSearchResponse.setSql(sql);
         }
         this.resultSet = new ElasticResultSet(this, jdbcSearchResponse);
@@ -87,7 +88,7 @@ public class ElasticStatement extends AbstractStatement {
     @Override
     public int executeUpdate(String sql) throws SQLException {
         ElasticSqlParseResult parseResult = elasticSql2DslParser.parse(sql);
-        checkDatabase(parseResult.getIndices());
+        connection.checkDatabase(parseResult.getIndices());
         try {
             switch (parseResult.getSqlOperation()) {
                 case INSERT: {
@@ -170,9 +171,5 @@ public class ElasticStatement extends AbstractStatement {
         return sql;
     }
 
-    private void checkDatabase(List<String> indices) throws SQLException {
-        if (!connection.getDatabaseNames().containsAll(indices)) {
-            throw new SQLException("[invalid] database queried must be contained in " + connection.getDatabaseNames());
-        }
-    }
+
 }

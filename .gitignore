@@ -7,3 +7,4 @@
 **/target/
 ~/**
 
+/elasticsearch-sql-jdbc/src/test/java/io/github/iamazy/elasticsearch/dsl/sql/secrettest/

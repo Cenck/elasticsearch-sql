@@ -13,6 +13,8 @@ import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * @author iamazy
@@ -22,7 +24,7 @@ public class ElasticConnection extends AbstractConnection {
 
     private RestHighLevelClient client;
 
-    private List<String> databases;
+    private List<Pattern> indexPatterns;
 
     ElasticConnection(String url, Properties properties, RestHighLevelClient client) {
         super(url, properties);
@@ -32,7 +34,7 @@ public class ElasticConnection extends AbstractConnection {
         if (database.contains(CoreConstants.COND)) {
             database = database.split("[?]")[0];
         }
-        this.databases = Arrays.asList(database.split("[,]"));
+        this.indexPatterns = Arrays.stream(database.split("[,]")).map(Pattern::compile).collect(Collectors.toList());
     }
 
     public RestHighLevelClient getRestClient() {
@@ -66,9 +68,6 @@ public class ElasticConnection extends AbstractConnection {
         return new ElasticDatabaseMetaData(this.url, this.properties.getOrDefault("user", "").toString());
     }
 
-    public List<String> getDatabaseNames() {
-        return databases;
-    }
 
     @Override
     public void close() throws SQLException {
@@ -79,4 +78,27 @@ public class ElasticConnection extends AbstractConnection {
             e.printStackTrace();
         }
     }
+
+
+    /**
+     * @param indices
+     * @throws SQLException
+     */
+    public void checkDatabase(List<String> indices) throws SQLException {
+        // jdbcUrl配置的database是正则匹配
+        boolean matched = true;
+        A:
+        for (Pattern compile : this.indexPatterns) {
+            for (String index : indices) {
+                if (!compile.matcher(index).matches()) {
+                    matched = false;
+                    break A;
+                }
+            }
+        }
+        if (!matched) {
+            throw new SQLException("[invalid] database queried must be declared in url-databases: " + this.url);
+        }
+    }
+
 }

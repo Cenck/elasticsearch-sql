@@ -17,6 +17,11 @@
             <artifactId>elasticsearch-sql-core</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.mybatis</groupId>
+            <artifactId>mybatis</artifactId>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
 </project>

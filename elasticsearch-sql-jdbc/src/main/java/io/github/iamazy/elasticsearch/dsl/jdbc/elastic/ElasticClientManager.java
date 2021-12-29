@@ -5,14 +5,14 @@ import io.github.iamazy.elasticsearch.dsl.cons.CoreConstants;
 import io.github.iamazy.elasticsearch.dsl.jdbc.ClusterMode;
 import io.github.iamazy.elasticsearch.dsl.jdbc.exception.InvalidUrlException;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.Header;
 import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.message.BasicHeader;
-import org.elasticsearch.client.HttpAsyncResponseConsumerFactory;
-import org.elasticsearch.client.NodeSelector;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
-import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.*;
 import org.elasticsearch.client.sniff.ElasticsearchNodesSniffer;
 import org.elasticsearch.client.sniff.NodesSniffer;
 import org.elasticsearch.client.sniff.SniffOnFailureListener;
@@ -21,19 +21,10 @@ import org.elasticsearch.client.sniff.Sniffer;
 import javax.net.ssl.SSLContext;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 
-
-import static io.github.iamazy.elasticsearch.dsl.jdbc.cons.JdbcConstants.DEFAULT_IP;
-import static io.github.iamazy.elasticsearch.dsl.jdbc.cons.JdbcConstants.DEFAULT_PORT;
-import static io.github.iamazy.elasticsearch.dsl.jdbc.cons.JdbcConstants.ELASTIC_DRIVER_PREFIX;
-import static io.github.iamazy.elasticsearch.dsl.jdbc.cons.JdbcConstants.IP_PORT_PATTERN;
+import static io.github.iamazy.elasticsearch.dsl.jdbc.cons.JdbcConstants.*;
 import static io.github.iamazy.elasticsearch.dsl.jdbc.ssl.SslContextManager.TRUST_ALL_CERTS;
 
 /**
@@ -59,15 +50,16 @@ public class ElasticClientManager implements ElasticClientProvider {
             int port = matcher.group(2) == null ? DEFAULT_PORT : Integer.parseInt(matcher.group(2));
             httpHosts.add(new HttpHost(ip, port, useSsl ? "https" : "http"));
         }
-        String token = username + ":" + password;
-        clientProxyMap.put(url, initClient(httpHosts, useSsl, parseClusterMode(mode), token));
+        clientProxyMap.put(url, initClient(httpHosts, useSsl, parseClusterMode(mode), username, password));
         return clientProxyMap.get(url);
     }
 
-    private RestHighLevelClient initClient(List<HttpHost> httpHosts, boolean useSsl, ClusterMode mode, String token) {
+    private RestHighLevelClient initClient(List<HttpHost> httpHosts, boolean useSsl, ClusterMode mode, String username, String password) {
         RestHighLevelClient restHighLevelClient;
         RestClientBuilder restClientBuilder = RestClient.builder(httpHosts.toArray(new HttpHost[0]))
                 .setNodeSelector(NodeSelector.SKIP_DEDICATED_MASTERS)
+                .setDefaultHeaders(new Header[]{new BasicHeader("Authorization",
+                        "Basic " + Base64.getEncoder().encodeToString((username + ":" + password).getBytes()))})
                 .setRequestConfigCallback(builder -> builder.setConnectTimeout(50000)
                         .setSocketTimeout(600000));
         if (useSsl) {
@@ -81,9 +73,14 @@ public class ElasticClientManager implements ElasticClientProvider {
                         } catch (NoSuchAlgorithmException | KeyManagementException e) {
                             throw new RuntimeException(e.getMessage());
                         }
+
+                        final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+                        credentialsProvider.setCredentials(
+                                AuthScope.ANY,
+                                new UsernamePasswordCredentials(username, password)
+                        );
+                        httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
                         httpAsyncClientBuilder.setSSLContext(sslContext);
-                        String basicToken = Base64.getEncoder().encodeToString(token.getBytes());
-                        httpAsyncClientBuilder.setDefaultHeaders(Collections.singletonList(new BasicHeader("Authorization", "Basic " + basicToken)));
                         return httpAsyncClientBuilder;
                     });
         }
