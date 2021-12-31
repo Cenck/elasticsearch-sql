@@ -9,6 +9,7 @@ import io.github.iamazy.elasticsearch.dsl.jdbc.result.ElasticResultSet;
 import io.github.iamazy.elasticsearch.dsl.sql.ElasticSql2DslParser;
 import io.github.iamazy.elasticsearch.dsl.sql.enums.SqlOperation;
 import io.github.iamazy.elasticsearch.dsl.sql.model.ElasticSqlParseResult;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollRequest;
@@ -27,6 +28,7 @@ import java.util.regex.Pattern;
  * @author iamazy
  * @date 2019/12/21
  **/
+@Slf4j
 public class ElasticStatement extends AbstractStatement {
 
     protected ElasticConnection connection;
@@ -168,6 +170,7 @@ public class ElasticStatement extends AbstractStatement {
         for (Object item : args) {
             sql = sql.replaceFirst("\\?", item.toString());
         }
+        log.info("====> es dsl sql: {}", sql);
         return sql;
     }
 

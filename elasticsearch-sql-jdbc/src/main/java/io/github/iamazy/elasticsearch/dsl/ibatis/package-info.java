@@ -1,0 +1,1 @@
+package io.github.iamazy.elasticsearch.dsl.ibatis;

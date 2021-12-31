@@ -38,7 +38,7 @@ public abstract class AbstractFeatureNotSupportedPreparedStatement extends Elast
 
     @Override
     public void setNull(int parameterIndex, int sqlType) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setNull");
+     
     }
 
 

@@ -26,8 +26,50 @@ public abstract class AbstractDriverBasedDataSource extends AbstractDataSource {
         return properties;
     }
 
+    /**
+     * @param properties {
+     *                   driverClassName: "",
+     *                   url: "",
+     *                   user: "",
+     *                   password:""
+     *                   // todo 其他restHighLevelClient官方支持的配置，如超时时间
+     *                   }
+     */
     public void setProperties(Properties properties) {
         this.properties = properties;
+        if (properties != null && properties.containsKey("driverClassName")) {
+            this.setDriverClassName(properties.getProperty("driverClassName"));
+        }
+    }
+
+    public static ClassLoader getDefaultClassLoader() {
+        ClassLoader classLoader = null;
+        try {
+            classLoader = Thread.currentThread().getContextClassLoader();
+        } catch (Throwable cause) {
+            cause.printStackTrace();
+        }
+        if (classLoader == null) {
+            classLoader = DriverManagerDataSource.class.getClassLoader();
+            if (classLoader == null) {
+                try {
+                    classLoader = ClassLoader.getSystemClassLoader();
+                } catch (Throwable cause) {
+                    cause.printStackTrace();
+                }
+            }
+        }
+        return classLoader;
+    }
+
+
+    public void setDriverClassName(String driverClassName) {
+        String driverClass = driverClassName.trim();
+        try {
+            Class.forName(driverClass, true, getDefaultClassLoader());
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException("Could not load JDBC driver class [" + driverClass + "]", e);
+        }
     }
 
     @Override
@@ -41,7 +83,7 @@ public abstract class AbstractDriverBasedDataSource extends AbstractDataSource {
     }
 
     protected Connection getConnectionFromDriver() throws SQLException {
-        if(properties!=null){
+        if (properties != null) {
             return getConnectionFromDriver(properties);
         }
         return getConnectionFromDriver(new Properties());

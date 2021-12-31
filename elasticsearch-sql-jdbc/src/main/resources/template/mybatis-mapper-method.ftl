@@ -1,0 +1,1 @@
+${returnType} ${methodName}(Map<String, Object> map);

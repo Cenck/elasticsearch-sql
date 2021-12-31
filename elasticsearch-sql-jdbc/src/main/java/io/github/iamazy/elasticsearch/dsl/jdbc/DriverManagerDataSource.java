@@ -23,34 +23,6 @@ public class DriverManagerDataSource extends AbstractDriverBasedDataSource {
         setProperties(properties);
     }
 
-    public static ClassLoader getDefaultClassLoader() {
-        ClassLoader classLoader = null;
-        try {
-            classLoader = Thread.currentThread().getContextClassLoader();
-        } catch (Throwable cause) {
-            cause.printStackTrace();
-        }
-        if (classLoader == null) {
-            classLoader = DriverManagerDataSource.class.getClassLoader();
-            if (classLoader == null) {
-                try {
-                    classLoader = ClassLoader.getSystemClassLoader();
-                } catch (Throwable cause) {
-                    cause.printStackTrace();
-                }
-            }
-        }
-        return classLoader;
-    }
-
-    public void setDriverClassName(String driverClassName){
-        String driverClass=driverClassName.trim();
-        try {
-            Class.forName(driverClass,true,getDefaultClassLoader());
-        }catch (ClassNotFoundException e){
-            throw new IllegalStateException("Could not load JDBC driver class [" + driverClass + "]", e);
-        }
-    }
 
     @Override
     protected Connection getConnectionFromDriver(Properties props) throws SQLException {
